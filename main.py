@@ -17,10 +17,11 @@ D = 1.0
 MAX_OUTPUT = 100
 device_serial_number = "1234"
 base_url = "https://brew-server.onrender.com"
+# base_url = "localhost:3000"
 communication_interval = 5000
 secret_key = "9f70e543-568b-4564-956e-a06d401606c8"
-brew_id = ""
-brewery_id = ""
+brew_id = "2"
+brewery_id = "24"
 
 # Initialize API client
 api = BrewingSystemAPI(base_url, brew_id, secret_key)
@@ -44,7 +45,7 @@ def convert_recipe_to_steps(recipe):
     boil_time = recipe.get("boilTimeMin")
     if boil_time is not None:
         steps.append({
-            "temperature_celsius": 100,  # Boiling temp
+            "temperature_celsius": 95,  # Boiling temp
             "duration_minutes": boil_time,
             "approval_required": False
         })
@@ -164,7 +165,13 @@ def main():
 
         # Start brewing communication
         try:
-            start_brewing_response = api.start_brewing(secret_key)
+            start_brewing_response = api.start_brewing(
+                brewery_id=brewery_id,
+                recipe_id=recipe["recipe_id"],  # assuming original recipe has this before `convert_recipe_to_steps()`
+                recipe_snapshot=recipe,
+                secret_key=secret_key
+            )
+
             print(f"Server start brewing response: {start_brewing_response}")
             print("Running Brewing Module\n")
         except Exception as e:

@@ -19,7 +19,7 @@ class BrewingSystemAPI:
         for attempt in range(max_retries):
             print(f"Attempt {attempt + 1} of {max_retries}...")
             try:
-                response = requests.get(url)
+                response = requests.post(url,json=payload)
                 print(f"Response received: {response}")
                 response.raise_for_status()
                 print("Recipe data fetched successfully.")
@@ -35,20 +35,27 @@ class BrewingSystemAPI:
                     print(f"All {max_retries} attempts failed. Raising the exception.")
                     raise
 
-    def start_brewing(self, device_serial_number, interval):
-        url = f"{self.base_url}/brew/{self.brew_id}/start"
-        payload = {"interval": interval}
+    def start_brewing(self, brewery_id, recipe_id, recipe_snapshot, secret_key):
+        url = f"{self.base_url}/brews/start"
+        payload = {
+            "brewery_id": brewery_id,
+            "recipe_id": recipe_id,
+            "recipe_snapshot": recipe_snapshot,
+            "secret_key": secret_key,
+            "status": "started"
+        }
+
         max_retries = 10
 
-        print(f"Preparing to start brewing at URL: {url} with interval: {interval}")
+        print(f"Preparing to start brewing at URL: {url}")
         for attempt in range(max_retries):
             print(f"Attempt {attempt + 1} of {max_retries}...")
             try:
-                response = requests.post(url, params=payload)
+                response = requests.post(url, json=payload)
                 print(f"Response received: {response.status_code}")
                 response.raise_for_status()
                 print("Brewing process started successfully.")
-                return response
+                return response.json()
             except requests.exceptions.RequestException as e:
                 print(f"Attempt {attempt + 1} failed with error: {e}")
                 if attempt < max_retries - 1:

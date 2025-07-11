@@ -1,5 +1,6 @@
 import requests
 import time
+import datetime
 
 class BrewingSystemAPI:
     def __init__(self, base_url, brew_id, secret_key):
@@ -35,18 +36,14 @@ class BrewingSystemAPI:
                     print(f"All {max_retries} attempts failed. Raising the exception.")
                     raise
 
-    def start_brewing(self, brewery_id, recipe_id, recipe_snapshot, secret_key):
-        url = f"{self.base_url}/brews/start"
+    def start_brewing(self, brew_id, secret_key):
+        url = f"{self.base_url}/brews/embedded_start"
         payload = {
-            "brewery_id": brewery_id,
-            "recipe_id": recipe_id,
-            "recipe_snapshot": recipe_snapshot,
+            "brew_id": brew_id,
             "secret_key": secret_key,
-            "status": "started"
         }
 
         max_retries = 10
-
         print(f"Preparing to start brewing at URL: {url}")
         for attempt in range(max_retries):
             print(f"Attempt {attempt + 1} of {max_retries}...")
@@ -65,16 +62,17 @@ class BrewingSystemAPI:
                     print("All attempts to start brewing failed. Raising the exception.")
                     raise
 
-    def mark_brewing_as_finished(self, device_serial_number):
-        url = f"{self.base_url}/brew/end"
-        payload = {"brew_id": self.brew_id, "user_id": user_id}
+
+    def mark_brewing_as_finished(self, brew_id):
+        url = f"{self.base_url}/brews/end"
+        payload = {"brew_id": brew_id}
         max_retries = 5
         for attempt in range(max_retries):
             try:
                 response = requests.post(url, json=payload)
                 response.raise_for_status()
                 print("Brewing marked as finished.")
-                return response
+                return response.json()
             except requests.exceptions.RequestException as e:
                 print(f"Error marking brewing as finished: {e}")
                 if attempt < max_retries - 1:
@@ -84,17 +82,23 @@ class BrewingSystemAPI:
                     print("Failed to mark brewing as finished after multiple attempts.")
                     raise
 
-    def add_brewing_report(self, brewing_report):
-        url = f"{self.base_url}/brew/temperature"
+
+    def add_brewing_report(self, brew_id, brewery_id, temperature_celsius):
+        url = f"{self.base_url}/brews/temperature"
         payload = {
-            "brew_id": self.brew_id,
+            "brew_id": brew_id,
             "brewery_id": brewery_id,
-            "temperature_celsius": brewing_report["temperature_celsius"],
+            "temperature_celsius": temperature_celsius,
         }
         try:
-            response = requests.post(url, json=brewing_report)
+            response = requests.post(url, json=payload)
             response.raise_for_status()
-            return response.json()
+            data = response.json()
+            return {
+                "status_code": response.status_code,
+                "brew_status": data.get("brew_status"),  # <-- Capture brew_status
+                "message": data.get("message")
+            }
         except requests.exceptions.HTTPError as http_err:
             print(f"[HTTP ERROR] {http_err}")
             return {
@@ -127,6 +131,27 @@ class BrewingSystemAPI:
                 "error_message": str(err)
             }
 
+    def update_step_status(self, status_field, status_value):
+        url = f"{self.base_url}/brews/update_step_status"
+        payload = {
+            "brew_id": self.brew_id,
+            "secret_key": self.secret_key,
+            "status_field": status_field,
+            "status_value": status_value,
+            "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat()
+        }
+
+        try:
+            response = requests.post(url, json=payload)
+            response.raise_for_status()
+            print(f"Step status update successful: {status_field} = {status_value}")
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            print(f"[ERROR] Failed to update step status: {e}")
+            return None
+
+
+
 # Helper function
 
 def create_temperature_report(recipe, temperature_celsius):
@@ -145,3 +170,5 @@ def create_temperature_report(recipe, temperature_celsius):
         "brewery_id": recipe.get("brewery_id"),
         "temperature_celsius": temperature_celsius,
     }
+
+
